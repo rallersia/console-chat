@@ -1,2 +1,2 @@
 # java-console-chat
-Simple console server application with users db on postgreSQL and messaging in session
+Simple server with users db on postgreSQL and socket communication with clients to login / registration and messaging in session.
