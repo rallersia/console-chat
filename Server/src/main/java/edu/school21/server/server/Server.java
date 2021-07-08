@@ -19,8 +19,8 @@ import java.util.List;
 @Component
 public class Server {
     private ServerSocket serverSocket;
-    private UsersService service;
-    private List<EchoClientHandler> clients;
+    private final UsersService service;
+    private final List<EchoClientHandler> clients;
 
 
     @Autowired
@@ -52,12 +52,12 @@ public class Server {
     }
 
     private static class EchoClientHandler extends Thread {
-        private Socket clientSocket;
+        private final Socket clientSocket;
         private PrintWriter out;
         private BufferedReader in;
         private User user;
-        private UsersService service;
-        private List<EchoClientHandler> clients;
+        private final UsersService service;
+        private final List<EchoClientHandler> clients;
 
         public EchoClientHandler(Socket socket, UsersService service, List<EchoClientHandler> clients) {
             this.clientSocket = socket;
@@ -65,7 +65,7 @@ public class Server {
             this.clients = clients;
         }
 
-        private void login() throws IOException {
+        private boolean login() throws IOException {
             String command = in.readLine();
             if ("signUp".equals(command) || "signIn".equals(command)) {
                 String username = in.readLine();
@@ -86,21 +86,28 @@ public class Server {
                         login();
                     }
                 }
+                return true;
+            }
+            return false;
+        }
+
+        private void sendMessageToClients(String message) {
+            for (EchoClientHandler client :
+                    clients) {
+                client.sendMessage(message);
             }
         }
 
         private void waitMessages() throws IOException {
             String message = in.readLine();
             while (!"exit".equals(message)) {
-                for (EchoClientHandler client :
-                        clients) {
-                        client.sendMessage(user.getUsername() + " > " + message);
-                }
+                sendMessageToClients(user.getUsername() + " > " + message);
                 message = in.readLine();
                 if (message == null) {
                     break;
                 }
             }
+            sendMessageToClients(user.getUsername() + " disconnected!");
         }
 
         public synchronized void sendMessage(String message) {
@@ -111,8 +118,10 @@ public class Server {
             try {
                 out = new PrintWriter(clientSocket.getOutputStream(), true);
                 in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                login();
-                waitMessages();
+                if (login()) {
+                    sendMessageToClients(user.getUsername() + " connected!");
+                    waitMessages();
+                }
                 in.close();
                 out.close();
                 clientSocket.close();
